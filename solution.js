@@ -10,3 +10,21 @@
 // 8.If the balls reduce by six change the bowler and change the strike of batsman.
 // 9.Give running this random results for 24 balls or until there are 4 wicket are taken or 40 runs are scored whichever is first.
 // 10.Return the result of the match.
+/**
+ * Returns the  outcome for each ball
+ * @param {number[]} probablities
+ * @param {string[]} outcomes
+ * @returns {string} outcome
+ */
+function randomOutcome(probablities, outcomes) {
+  return outcome;
+}
+/**
+ * Returns the match summary
+ * @returns {object} matchSummary
+ */
+function simulateScore() {
+  randomOutcome(probablities, outcomes)
+  return matchSummary;
+
+}
