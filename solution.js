@@ -46,7 +46,7 @@ function simulateBall(batterName) {
 
 /**
  * Returns updatedGamestate
- * @param {obhect} gameState
+ * @param {object} gameState
  * @returns {object} updatedGamestate
  */
 function simulateOver(gameState) {
