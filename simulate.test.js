@@ -1,4 +1,3 @@
-// simulate.test.js
 
 const { simulateBall } = require("./simulate");
 

@@ -46,7 +46,7 @@ for (const batter in PLAYER_PROBABILITIES) {
     buildOutcomeRanges(PLAYER_PROBABILITIES[batter], OUTCOMES);
 }
 // dynamic for diff players
-
+// console.log(PLAYER_OUTCOME_RANGES[batter])
 
 function createInitialGameState() {
   return {
@@ -125,16 +125,14 @@ function simulateOver(gameState) {
   while (currentBall < 6) {
     const striker = gameState.battingOrder[gameState.strikerIndex];
     const outcome = simulateBall(striker);
-
-    const { gameState: updatedGamestate, matchEnded } = updateGameState(gameState, striker, outcome);
-
+    const result = updateGameState(gameState, striker, outcome);
 
     currentBall++;
 
     if (result.matchEnded) {
       break;
-
     }
+
     // call simulateBall with strike batsman
     // based on the outcome update gameState
     // break if the target is acheived or the wickets are over
@@ -194,7 +192,7 @@ function updateGameState(gameState, striker, outcome) {
  */
 function simulateMatch() {
   //create the initial gamestate
-  const gameState = createInitialGameState()
+  let gameState = createInitialGameState()
 
   while (MatchGoingOn(gameState)) {
     gameState = simulateOver(gameState);
@@ -211,6 +209,7 @@ function simulateMatch() {
 
 
 }
+console.log(simulateMatch())
 // replace the random generator with seeded random generator/mocking
 // make sure it is working by writing a testcase
 // create a compute prefix sum(cdf) funcfor each player rather than calculate  cumulative for each ball
