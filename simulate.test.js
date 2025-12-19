@@ -1,4 +1,6 @@
-const { simulateBall } = require("./simulateBall");
+// simulate.test.js
+
+const { simulateBall } = require("./simulate");
 
 describe("simulateBall()", () => {
   afterEach(() => {

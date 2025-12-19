@@ -12,6 +12,42 @@
 // 10.Return the result of the match.
 module.exports = { simulateBall };
 
+const OUTCOMES = [0, 1, 2, 3, 4, 5, 6, "W"];
+
+const PLAYER_PROBABILITIES = {
+  kirat: [0.05, 0.30, 0.25, 0.10, 0.15, 0.01, 0.09, 0.05],
+  nodhi: [0.10, 0.40, 0.20, 0.05, 0.10, 0.01, 0.04, 0.10],
+  rumrah: [0.20, 0.30, 0.15, 0.05, 0.05, 0.01, 0.04, 0.20],
+  shashi: [0.30, 0.25, 0.05, 0.00, 0.05, 0.01, 0.04, 0.30]
+};
+
+function buildOutcomeRanges(probabilities, outcomes) {
+  let cumulative = 0;
+  const ranges = [];
+
+  for (let i = 0; i < probabilities.length; i++) {
+    const from = cumulative;
+    cumulative = cumulative + probabilities[i];
+
+    ranges.push({
+      from,
+      to: cumulative,
+      outcome: outcomes[i]
+    });
+  }
+
+  return ranges;
+}
+
+const PLAYER_OUTCOME_RANGES = {};
+
+for (const batter in PLAYER_PROBABILITIES) {
+  PLAYER_OUTCOME_RANGES[batter] =
+    buildOutcomeRanges(PLAYER_PROBABILITIES[batter], OUTCOMES);
+}
+// dynamic for diff players
+
+
 function createInitialGameState() {
   return {
     target: 40,
@@ -66,30 +102,23 @@ function formatResult(gameState) {
  */
 function simulateBall(batter) {
   // looks up batter in probabilities chart
-  const outcomes = [0, 1, 2, 3, 4, 5, 6, "W"];
-  const probablity = {
-    kirat: [0.05, 0.30, 0.25, 0.10, 0.15, 0.01, 0.09, 0.05],
-    nodhi: [0.10, 0.40, 0.20, 0.05, 0.10, 0.01, 0.04, 0.10],
-    rumrah: [0.20, 0.30, 0.15, 0.05, 0.05, 0.01, 0.04, 0.20],
-    shashi: [0.30, 0.25, 0.05, 0.00, 0.05, 0.01, 0.04, 0.30]
-  }
-  const probablities = probablity[batter] //dynamic key
+
 
   // randomly determines outcome
   const rand = Math.random()
-  let cumulative = 0;
-  for (let i = 0; i < probablities.length; i++) {
 
-    cumulative += probablities[i];
-    if (rand <= cumulative) {
-      return outcomes[i];
+
+  const ranges = PLAYER_OUTCOME_RANGES[batter]
+  for (let i = 0; i < ranges.length; i++) {
+
+    if (rand >= ranges[i].from && rand < ranges[i].to) {
+      return ranges[i].outcome;
     }
 
   }
 
   // return outcome as str | num
 }
-
 function simulateOver(gameState) {
   // while loop with the gamestate of balls
   let currentBall = 0
