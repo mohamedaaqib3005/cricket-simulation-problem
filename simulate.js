@@ -122,11 +122,12 @@ function simulateBall(batter) {
 function simulateOver(gameState) {
   // while loop with the gamestate of balls
   let currentBall = 0
+  let state = gameState
   while (currentBall < 6) {
     const striker = gameState.battingOrder[gameState.strikerIndex];
     const outcome = simulateBall(striker);
     const result = updateGameState(gameState, striker, outcome);
-
+    state = result.gameState;
     currentBall++;
 
     if (result.matchEnded) {
@@ -138,7 +139,7 @@ function simulateOver(gameState) {
     // break if the target is acheived or the wickets are over
     // return updatedGamestate
   }
-  return gameState;
+  return state;
 }
 
 /**
@@ -148,41 +149,46 @@ function simulateOver(gameState) {
  */
 function updateGameState(gameState, striker, outcome) {
   let matchEnded = false;
-  gameState.players[striker].balls++;
+  const newGameState = {
+    ...gameState,
+    players: {
+      ...gameState.players,
+      [striker]: {
+        ...gameState.players[striker],
+        balls: gameState.players[striker].balls + 1
+      }
+    }
+  };
 
   if (outcome === "W") {
-
-    gameState.wicketsLeft--;
-
-    if (gameState.wicketsLeft <= 0) {
+    newGameState.wicketsLeft = gameState.wicketsLeft - 1;
+    if (newGameState.wicketsLeft <= 0) {
       matchEnded = true;
-      return { gameState, matchEnded };
+      return { gameState: newGameState, matchEnded };
     }
-
     if (gameState.nextBatsmanIndex < gameState.battingOrder.length) {
-      gameState.strikerIndex = gameState.nextBatsmanIndex;
-      gameState.nextBatsmanIndex++;
+      newGameState.strikerIndex = gameState.nextBatsmanIndex;
+      newGameState.nextBatsmanIndex = gameState.nextBatsmanIndex + 1;
     } else {
       matchEnded = true;
     }
 
   } else {
     const runs = outcome;
-
-    gameState.players[striker].runs += runs;
-    gameState.target -= runs;
-
+    newGameState.players[striker].runs =
+      gameState.players[striker].runs + runs;
+    newGameState.target = gameState.target - runs;
     if (runs % 2 === 1) {
-      [gameState.strikerIndex, gameState.nonStrikerIndex] =
-        [gameState.nonStrikerIndex, gameState.strikerIndex];
+      newGameState.strikerIndex = gameState.nonStrikerIndex;
+      newGameState.nonStrikerIndex = gameState.strikerIndex;
     }
-
-    if (gameState.target <= 0) {
+    if (newGameState.target <= 0) {
       matchEnded = true;
     }
   }
-  return { gameState, matchEnded };
+  return { gameState: newGameState, matchEnded };
 }
+
 
 
 /**
