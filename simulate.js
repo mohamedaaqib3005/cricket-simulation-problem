@@ -10,11 +10,16 @@
 // 8.If the balls reduce by six change the bowler and change the strike of batsman.
 // 9.Give running this random results for 24 balls or until there are 4 wicket are taken or 40 runs are scored whichever is first.
 // 10.Return the result of the match.
-module.exports = { simulateBall };
+module.exports = {
+  simulateBall,
+  simulateOver,
+  simulateMatch,
+  createInitialGameState
+};
 
-const OUTCOMES = [0, 1, 2, 3, 4, 5, 6, "W"];
+const BALL_OUTCOMES = [0, 1, 2, 3, 4, 5, 6, "W"];
 
-const PLAYER_PROBABILITIES = {
+const PLAYER_OUTCOME_PROBABILITIES = {
   kirat: [0.05, 0.30, 0.25, 0.10, 0.15, 0.01, 0.09, 0.05],
   nodhi: [0.10, 0.40, 0.20, 0.05, 0.10, 0.01, 0.04, 0.10],
   rumrah: [0.20, 0.30, 0.15, 0.05, 0.05, 0.01, 0.04, 0.20],
@@ -38,12 +43,14 @@ function buildOutcomeRanges(probabilities, outcomes) {
 
   return ranges;
 }
+// Change the object to array of cumulative distribution
+//
 
 const PLAYER_OUTCOME_RANGES = {};
 
-for (const batter in PLAYER_PROBABILITIES) {
+for (const batter in PLAYER_OUTCOME_PROBABILITIES) {
   PLAYER_OUTCOME_RANGES[batter] =
-    buildOutcomeRanges(PLAYER_PROBABILITIES[batter], OUTCOMES);
+    buildOutcomeRanges(PLAYER_OUTCOME_PROBABILITIES[batter], BALL_OUTCOMES);
 }
 // dynamic for diff players
 // console.log(PLAYER_OUTCOME_RANGES[batter])
@@ -102,12 +109,8 @@ function formatResult(gameState) {
  */
 function simulateBall(batter) {
   // looks up batter in probabilities chart
-
-
   // randomly determines outcome
   const rand = Math.random()
-
-
   const ranges = PLAYER_OUTCOME_RANGES[batter]
   for (let i = 0; i < ranges.length; i++) {
 
@@ -118,15 +121,16 @@ function simulateBall(batter) {
   }
 
   // return outcome as str | num
+  // findIndex
 }
-function simulateOver(gameState) {
+function simulateOver(gameState, ballFn = simulateBall) {
   // while loop with the gamestate of balls
   let currentBall = 0
   let state = gameState
   while (currentBall < 6) {
-    const striker = gameState.battingOrder[gameState.strikerIndex];
-    const outcome = simulateBall(striker);
-    const result = updateGameState(gameState, striker, outcome);
+    const striker = state.battingOrder[state.strikerIndex];
+    const outcome = ballFn(striker);
+    const result = updateGameState(state, striker, outcome);
     state = result.gameState;
     currentBall++;
 
@@ -159,7 +163,7 @@ function updateGameState(gameState, striker, outcome) {
       }
     }
   };
-
+  // create a fn called deepcopy gamestate
   if (outcome === "W") {
     newGameState.wicketsLeft = gameState.wicketsLeft - 1;
     if (newGameState.wicketsLeft <= 0) {
@@ -191,17 +195,19 @@ function updateGameState(gameState, striker, outcome) {
 
 
 
+
+
 /**
  * Returns the  match summary
  *
  * @returns {string|number} matchSummary
  */
-function simulateMatch() {
+function simulateMatch(ballFn = simulateBall) {
   //create the initial gamestate
   let gameState = createInitialGameState()
 
   while (MatchGoingOn(gameState)) {
-    gameState = simulateOver(gameState);
+    gameState = simulateOver(gameState, ballFn);
     if (!MatchGoingOn(gameState)) break;
 
     changeOver(gameState);
@@ -215,14 +221,12 @@ function simulateMatch() {
 
 
 }
-console.log(simulateMatch())
 // replace the random generator with seeded random generator/mocking
 // make sure it is working by writing a testcase
-// create a compute prefix sum(cdf) funcfor each player rather than calculate  cumulative for each ball
+// create a compute prefix sum(cdf) func for each player rather than calculate  cumulative for each ball
 // updateGameState shouldnt mutate gamestate
 // Deep copy vs Shallow copy
-// Dont track wicketsleft
-// dont update target
-// dont track overs in gamestate
-// change over to change strike
-// jest
+// Dont track wicketsleft just use the batting order instead of having a new var wickets;
+// dont update target just check with the runs of batsman
+// dont track overs in gamestate just use the no of balls played by batsman
+// rename change over to change strike
