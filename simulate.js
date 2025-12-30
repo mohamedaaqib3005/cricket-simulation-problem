@@ -59,7 +59,6 @@ function createInitialGameState() {
   return {
     target: 40,
     overs: 4,
-    wicketsLeft: 4,
     battingOrder: ["kirat", "nodhi", "rumrah", "shashi"],
     strikerIndex: 0,
     nonStrikerIndex: 1,
@@ -77,22 +76,25 @@ function MatchGoingOn(gameState) {
   return (
     gameState.target > 0 &&
     gameState.overs > 0 &&
-    gameState.wicketsLeft > 0
+    gameState.nextBatsmanIndex < gameState.battingOrder.length
   );
 }
 
 function changeOver(gameState) {
-  gameState.overs--;
-
-  [gameState.strikerIndex, gameState.nonStrikerIndex] =
-    [gameState.nonStrikerIndex, gameState.strikerIndex];
+  return {
+    ...gameState,
+    strikerIndex: gameState.nonStrikerIndex,
+    nonStrikerIndex: gameState.strikerIndex
+  };
 }
 
 function formatResult(gameState) {
-
+  const wicketsLost = gameState.nextBatsmanIndex - 1;
+  const wicketsRemaining =
+    gameState.battingOrder.length - gameState.nextBatsmanIndex;
   let result;
   if (gameState.target <= 0) {
-    result = `Bangalore won with ${gameState.wicketsLeft} wickets`;
+    result = `Bangalore won with ${wicketsRemaining} wickets`;
   }
   else {
     result = `Chennai won `
@@ -150,10 +152,8 @@ function simulateOver(gameState, ballFn = simulateBall) {
  * Returns updatedGamestate
  * @param {object} gameState
  * @returns {object} updatedGamestate
- */
-function updateGameState(gameState, striker, outcome) {
-  let matchEnded = false;
-  const newGameState = {
+ */function updateGameState(gameState, striker, outcome) {
+  const baseState = {
     ...gameState,
     players: {
       ...gameState.players,
@@ -163,34 +163,48 @@ function updateGameState(gameState, striker, outcome) {
       }
     }
   };
-  // create a fn called deepcopy gamestate
+
+
   if (outcome === "W") {
-    newGameState.wicketsLeft = gameState.wicketsLeft - 1;
-    if (newGameState.wicketsLeft <= 0) {
-      matchEnded = true;
-      return { gameState: newGameState, matchEnded };
-    }
-    if (gameState.nextBatsmanIndex < gameState.battingOrder.length) {
-      newGameState.strikerIndex = gameState.nextBatsmanIndex;
-      newGameState.nextBatsmanIndex = gameState.nextBatsmanIndex + 1;
-    } else {
-      matchEnded = true;
+    // innings over
+    if (gameState.nextBatsmanIndex >= gameState.battingOrder.length) {
+      return { gameState: baseState, matchEnded: true };
     }
 
-  } else {
-    const runs = outcome;
-    newGameState.players[striker].runs =
-      gameState.players[striker].runs + runs;
-    newGameState.target = gameState.target - runs;
-    if (runs % 2 === 1) {
-      newGameState.strikerIndex = gameState.nonStrikerIndex;
-      newGameState.nonStrikerIndex = gameState.strikerIndex;
-    }
-    if (newGameState.target <= 0) {
-      matchEnded = true;
-    }
+    // next batsman
+    return {
+      gameState: {
+        ...baseState,
+        strikerIndex: gameState.nextBatsmanIndex,
+        nextBatsmanIndex: gameState.nextBatsmanIndex + 1
+      },
+      matchEnded: false
+    };
   }
-  return { gameState: newGameState, matchEnded };
+
+  // Runs
+  const runs = outcome;
+  const target = gameState.target - runs;
+  const isOdd = runs % 2 === 1;
+
+  const newGameState = {
+    ...baseState,
+    target,
+    strikerIndex: isOdd ? gameState.nonStrikerIndex : gameState.strikerIndex,
+    nonStrikerIndex: isOdd ? gameState.strikerIndex : gameState.nonStrikerIndex,
+    players: {
+      ...baseState.players,
+      [striker]: {
+        ...baseState.players[striker],
+        runs: baseState.players[striker].runs + runs
+      }
+    }
+  };
+
+  return {
+    gameState: newGameState,
+    matchEnded: target <= 0
+  };
 }
 
 

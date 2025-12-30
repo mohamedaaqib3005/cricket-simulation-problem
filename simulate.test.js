@@ -16,7 +16,10 @@ describe("simulateOver()", () => {
     const result = simulateOver(gameState, mockBall);
 
     expect(mockBall).toHaveBeenCalledTimes(6);
-    expect(result.wicketsLeft).toBe(3);
+    const wicketsRemaining =
+      result.battingOrder.length - result.nextBatsmanIndex;
+    expect(wicketsRemaining).toBe(3);
+
   });
 });
 
