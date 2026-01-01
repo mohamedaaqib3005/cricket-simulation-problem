@@ -12,10 +12,24 @@
 // 10.Return the result of the match.
 module.exports = {
   simulateBall,
-  simulateOver,
   simulateMatch,
   createInitialGameState
 };
+
+
+function getTotalBalls(gameState) {
+  let totalBalls = 0;
+
+  for (let playerName in gameState.players) {
+    const player = gameState.players[playerName];
+    totalBalls = player.balls + totalBalls;
+  }
+
+  return totalBalls;
+
+
+}
+
 
 const BALL_OUTCOMES = [0, 1, 2, 3, 4, 5, 6, "W"];
 
@@ -41,6 +55,18 @@ function buildOutcomeRanges(probabilities, outcomes) {
     });
   }
 
+  probabilities.map((probablity, i) => {
+    const from = cumulative;
+    let probablity = probabilities[i]
+    cumulative = cumulative + probablity
+    return {
+      from,
+      to: cumulative,
+      outcome: outcomes[index]
+    }
+  })
+
+
   return ranges;
 }
 // Change the object to array of cumulative distribution
@@ -58,7 +84,6 @@ for (const batter in PLAYER_OUTCOME_PROBABILITIES) {
 function createInitialGameState() {
   return {
     target: 40,
-    overs: 4,
     battingOrder: ["kirat", "nodhi", "rumrah", "shashi"],
     strikerIndex: 0,
     nonStrikerIndex: 1,
@@ -75,21 +100,15 @@ function createInitialGameState() {
 function MatchGoingOn(gameState) {
   return (
     gameState.target > 0 &&
-    gameState.overs > 0 &&
+    getTotalBalls(gameState) < 24 &&
     gameState.nextBatsmanIndex < gameState.battingOrder.length
   );
 }
 
-function changeOver(gameState) {
-  return {
-    ...gameState,
-    strikerIndex: gameState.nonStrikerIndex,
-    nonStrikerIndex: gameState.strikerIndex
-  };
-}
+
 
 function formatResult(gameState) {
-  const wicketsLost = gameState.nextBatsmanIndex - 1;
+
   const wicketsRemaining =
     gameState.battingOrder.length - gameState.nextBatsmanIndex;
   let result;
@@ -124,28 +143,6 @@ function simulateBall(batter) {
 
   // return outcome as str | num
   // findIndex
-}
-function simulateOver(gameState, ballFn = simulateBall) {
-  // while loop with the gamestate of balls
-  let currentBall = 0
-  let state = gameState
-  while (currentBall < 6) {
-    const striker = state.battingOrder[state.strikerIndex];
-    const outcome = ballFn(striker);
-    const result = updateGameState(state, striker, outcome);
-    state = result.gameState;
-    currentBall++;
-
-    if (result.matchEnded) {
-      break;
-    }
-
-    // call simulateBall with strike batsman
-    // based on the outcome update gameState
-    // break if the target is acheived or the wickets are over
-    // return updatedGamestate
-  }
-  return state;
 }
 
 /**
@@ -221,20 +218,33 @@ function simulateMatch(ballFn = simulateBall) {
   let gameState = createInitialGameState()
 
   while (MatchGoingOn(gameState)) {
-    gameState = simulateOver(gameState, ballFn);
-    if (!MatchGoingOn(gameState)) break;
+    const striker = gameState.battingOrder[state.strikerIndex];
+    const outcome = ballFn(striker);
+    const result = updateGameState(gameState, striker, outcome);
+    gameState = result.gameState;
+    if (result.matchEnded) break;
 
-    changeOver(gameState);
-
+    const totalBalls = getTotalBalls(gameState);
+    if (totalBalls % 6 === 0) {
+      gameState = {
+        ...gameState,
+        strikerIndex: gameState.nonStrikerIndex,
+        nonStrikerIndex: gameState.strikerIndex,
+      };
+    }
   }
+
   return formatResult(gameState);
-  // while until match end (target,over,wickets)
-  // call simulateOver function
-  // change batsman after each over
-  // print the final match state
 
 
 }
+// while until match end (target,over,wickets)
+// call simulateOver function
+// change batsman after each over
+// print the final match state
+
+
+
 // replace the random generator with seeded random generator/mocking
 // make sure it is working by writing a testcase
 // create a compute prefix sum(cdf) func for each player rather than calculate  cumulative for each ball
