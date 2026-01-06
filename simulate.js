@@ -16,21 +16,64 @@ module.exports = {
   createInitialGameState
 };
 
+function deepCopyGameState(gameState) {
+  return {
+    ...gameState,
+    players: Object.fromEntries(
+      Object.entries(gameState.players).map(([name, stats]) => [
+        name,
+        { ...stats }
+      ])
+    )
+  };
+}
 
 function getTotalBalls(gameState) {
-  let totalBalls = 0;
 
-  for (let playerName in gameState.players) {
-    const player = gameState.players[playerName];
-    totalBalls = player.balls + totalBalls;
-  }
-
-  return totalBalls;
-
+  return Object.values(gameState.players)
+    .reduce((total, player) => total + player.balls, 0)
 
 }
 
+function getTotalRuns(gameState) {
+  return Object.values(gameState.players)
+    .reduce((total, player) => total + player.runs, 0);
+}
 
+function getNextBatsmanIndex(gameState) {
+  return Math.max(
+    gameState.strikerIndex,
+    gameState.nonStrikerIndex
+  ) + 1;
+}
+
+function getRemainingWickets(gameState) {
+  return (
+    gameState.battingOrder.length - getNextBatsmanIndex(gameState)
+  );
+}
+
+function swapStrikers(gameState) {
+
+  return {
+    ...gameState,
+    strikerIndex: gameState.nonStrikerIndex,
+    nonStrikerIndex: gameState.strikerIndex,
+  };
+}
+
+function playDelivery(gameState, ballFn = simulateBall) {
+  const striker = gameState.battingOrder[gameState.strikerIndex];
+  const outcome = ballFn(striker);
+
+  return updateGameState(gameState, striker, outcome);
+
+}
+
+function isEndOfOver(gameState) {
+  const balls = getTotalBalls(gameState);
+  return balls > 0 && balls % 6 === 0;
+}
 const BALL_OUTCOMES = [0, 1, 2, 3, 4, 5, 6, "W"];
 
 const PLAYER_OUTCOME_PROBABILITIES = {
@@ -40,29 +83,18 @@ const PLAYER_OUTCOME_PROBABILITIES = {
   shashi: [0.30, 0.25, 0.05, 0.00, 0.05, 0.01, 0.04, 0.30]
 };
 
+const TARGET_RUNS = 40;
+
 function buildOutcomeRanges(probabilities, outcomes) {
   let cumulative = 0;
-  const ranges = [];
 
-  for (let i = 0; i < probabilities.length; i++) {
+  const ranges = probabilities.map((probablity, i) => {
     const from = cumulative;
-    cumulative = cumulative + probabilities[i];
-
-    ranges.push({
-      from,
-      to: cumulative,
-      outcome: outcomes[i]
-    });
-  }
-
-  probabilities.map((probablity, i) => {
-    const from = cumulative;
-    let probablity = probabilities[i]
     cumulative = cumulative + probablity
     return {
       from,
       to: cumulative,
-      outcome: outcomes[index]
+      outcome: outcomes[i]
     }
   })
 
@@ -83,11 +115,10 @@ for (const batter in PLAYER_OUTCOME_PROBABILITIES) {
 
 function createInitialGameState() {
   return {
-    target: 40,
     battingOrder: ["kirat", "nodhi", "rumrah", "shashi"],
     strikerIndex: 0,
     nonStrikerIndex: 1,
-    nextBatsmanIndex: 2,
+    nextBatsmanIndex: 2,// single source of truth can use max index of current batsman playing
     players: {
       kirat: { runs: 0, balls: 0 },
       nodhi: { runs: 0, balls: 0 },
@@ -97,22 +128,22 @@ function createInitialGameState() {
   };
 }
 
-function MatchGoingOn(gameState) {
+function isMatchGoingOn(gameState) {
   return (
-    gameState.target > 0 &&
+    getTotalRuns(gameState) < TARGET_RUNS &&
     getTotalBalls(gameState) < 24 &&
-    gameState.nextBatsmanIndex < gameState.battingOrder.length
-  );
+    getRemainingWickets(gameState) > 0);
 }
 
 
 
 function formatResult(gameState) {
+  const wicketsRemaining = getRemainingWickets(gameState);
+  const totalRuns = getTotalRuns(gameState);
 
-  const wicketsRemaining =
-    gameState.battingOrder.length - gameState.nextBatsmanIndex;
+
   let result;
-  if (gameState.target <= 0) {
+  if (totalRuns >= TARGET_RUNS) {
     result = `Bangalore won with ${wicketsRemaining} wickets`;
   }
   else {
@@ -123,6 +154,8 @@ function formatResult(gameState) {
     players: gameState.players
   }
 }
+
+// format the player details also
 /**
  * Returns the  outcome for each ball
  * @param {number[]} probablities
@@ -149,61 +182,43 @@ function simulateBall(batter) {
  * Returns updatedGamestate
  * @param {object} gameState
  * @returns {object} updatedGamestate
- */function updateGameState(gameState, striker, outcome) {
-  const baseState = {
-    ...gameState,
-    players: {
-      ...gameState.players,
-      [striker]: {
-        ...gameState.players[striker],
-        balls: gameState.players[striker].balls + 1
-      }
-    }
-  };
+ */
+function updateGameState(gameState, striker, outcome) {
+  const state = deepCopyGameState(gameState);
 
+  // every delivery consumes a ball
+  state.players[striker].balls += 1;
 
+  // WICKET
   if (outcome === "W") {
-    // innings over
-    if (gameState.nextBatsmanIndex >= gameState.battingOrder.length) {
-      return { gameState: baseState, matchEnded: true };
-    }
+    const nextBatsmanIndex = getNextBatsmanIndex(state);
 
-    // next batsman
-    return {
-      gameState: {
-        ...baseState,
-        strikerIndex: gameState.nextBatsmanIndex,
-        nextBatsmanIndex: gameState.nextBatsmanIndex + 1
-      },
-      matchEnded: false
-    };
+    if (nextBatsmanIndex >= state.battingOrder.length) {
+      return { gameState: state, matchEnded: true };
+    }
+    state.strikerIndex = nextBatsmanIndex;
+
+    return { gameState: state, matchEnded: false };
   }
 
-  // Runs
+  // RUNS
   const runs = outcome;
-  const target = gameState.target - runs;
-  const isOdd = runs % 2 === 1;
+  state.players[striker].runs += runs;
 
-  const newGameState = {
-    ...baseState,
-    target,
-    strikerIndex: isOdd ? gameState.nonStrikerIndex : gameState.strikerIndex,
-    nonStrikerIndex: isOdd ? gameState.strikerIndex : gameState.nonStrikerIndex,
-    players: {
-      ...baseState.players,
-      [striker]: {
-        ...baseState.players[striker],
-        runs: baseState.players[striker].runs + runs
-      }
-    }
-  };
+  if (runs % 2 === 1) {
+    const temp = state.strikerIndex;
+    state.strikerIndex = state.nonStrikerIndex;
+    state.nonStrikerIndex = temp;
+  }
 
   return {
-    gameState: newGameState,
-    matchEnded: target <= 0
+    gameState: state,
+    matchEnded: getTotalRuns(state) >= TARGET_RUNS
   };
+
 }
 
+//create afn called getTotalRuns instead of mutating target
 
 
 
@@ -217,20 +232,13 @@ function simulateMatch(ballFn = simulateBall) {
   //create the initial gamestate
   let gameState = createInitialGameState()
 
-  while (MatchGoingOn(gameState)) {
-    const striker = gameState.battingOrder[state.strikerIndex];
-    const outcome = ballFn(striker);
-    const result = updateGameState(gameState, striker, outcome);
+  while (isMatchGoingOn(gameState)) {
+    const result = playDelivery(gameState, ballFn);
     gameState = result.gameState;
     if (result.matchEnded) break;
 
-    const totalBalls = getTotalBalls(gameState);
-    if (totalBalls % 6 === 0) {
-      gameState = {
-        ...gameState,
-        strikerIndex: gameState.nonStrikerIndex,
-        nonStrikerIndex: gameState.strikerIndex,
-      };
+    if (isEndOfOver(gameState)) {
+      gameState = swapStrikers(gameState);
     }
   }
 
@@ -238,6 +246,7 @@ function simulateMatch(ballFn = simulateBall) {
 
 
 }
+console.log(simulateMatch())
 // while until match end (target,over,wickets)
 // call simulateOver function
 // change batsman after each over
@@ -245,12 +254,3 @@ function simulateMatch(ballFn = simulateBall) {
 
 
 
-// replace the random generator with seeded random generator/mocking
-// make sure it is working by writing a testcase
-// create a compute prefix sum(cdf) func for each player rather than calculate  cumulative for each ball
-// updateGameState shouldnt mutate gamestate
-// Deep copy vs Shallow copy
-// Dont track wicketsleft just use the batting order instead of having a new var wickets;
-// dont update target just check with the runs of batsman
-// dont track overs in gamestate just use the no of balls played by batsman
-// rename change over to change strike

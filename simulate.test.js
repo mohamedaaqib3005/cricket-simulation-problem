@@ -1,6 +1,5 @@
 const {
   simulateBall,
-  simulateOver,
   simulateMatch,
   createInitialGameState
 } = require("./simulate");
@@ -10,7 +9,6 @@ describe("createInitialGameState()", () => {
     const state = createInitialGameState();
 
     expect(state.target).toBe(40);
-    expect(state.overs).toBe(4);
     expect(state.battingOrder).toEqual([
       "kirat",
       "nodhi",
@@ -33,7 +31,7 @@ describe("simulateBall()", () => {
   });
 
   test("returns a valid outcome", () => {
-    jest.spyOn(Math, "random").mockReturnValue(0.99); // force last bucket
+    jest.spyOn(Math, "random").mockReturnValue(0.5);
 
     const outcome = simulateBall("kirat");
 
@@ -44,41 +42,14 @@ describe("simulateBall()", () => {
     jest.spyOn(Math, "random").mockReturnValue(0.999);
 
     const outcome = simulateBall("shashi");
+
     expect(outcome).toBe("W");
-  });
-});
-
-describe("simulateOver()", () => {
-  test("over continues after a wicket", () => {
-    const mockBall = jest
-      .fn()
-      .mockReturnValueOnce(1)
-      .mockReturnValueOnce("W")
-      .mockReturnValue(0);
-
-    const gameState = createInitialGameState();
-    const result = simulateOver(gameState, mockBall);
-
-    expect(mockBall).toHaveBeenCalledTimes(6);
-
-    const wicketsRemaining =
-      result.battingOrder.length - result.nextBatsmanIndex;
-
-    expect(wicketsRemaining).toBe(1);
-  });
-
-  test("over ends early if innings ends", () => {
-    const mockBall = jest.fn().mockReturnValue("W");
-
-    const gameState = createInitialGameState();
-    const result = simulateOver(gameState, mockBall);
-
-    expect(result.nextBatsmanIndex).toBe(result.battingOrder.length);
   });
 });
 
 describe("simulateMatch()", () => {
   test("Bangalore wins when target is achieved", () => {
+    // Every ball scores 6 → target reached quickly
     const mockBall = jest.fn().mockReturnValue(6);
 
     const result = simulateMatch(mockBall);
@@ -87,6 +58,7 @@ describe("simulateMatch()", () => {
   });
 
   test("Chennai wins when all batsmen are out", () => {
+    // Every ball is a wicket
     const mockBall = jest.fn().mockReturnValue("W");
 
     const result = simulateMatch(mockBall);
@@ -94,17 +66,33 @@ describe("simulateMatch()", () => {
     expect(result.result).toBe("Chennai won ");
   });
 
-  test("returns players scorecard", () => {
+  test("match stops after 24 balls if target not reached", () => {
     const mockBall = jest.fn().mockReturnValue(0);
 
     const result = simulateMatch(mockBall);
 
+    // No one scores runs
+    expect(result.result).toBe("Chennai won ");
+
+    const totalBalls = Object.values(result.players)
+      .reduce((sum, p) => sum + p.balls, 0);
+
+    expect(totalBalls).toBe(24);
+  });
+
+  test("returns players scorecard with runs and balls", () => {
+    const mockBall = jest.fn().mockReturnValue(1);
+
+    const result = simulateMatch(mockBall);
+
     expect(result.players).toBeDefined();
-    expect(result.players.kirat).toHaveProperty("runs");
-    expect(result.players.kirat).toHaveProperty("balls");
+
+    for (const player of Object.values(result.players)) {
+      expect(player).toHaveProperty("runs");
+      expect(player).toHaveProperty("balls");
+    }
   });
 });
-
 
 // do unit testing for simulate over
 // do unit testing for simulate match
